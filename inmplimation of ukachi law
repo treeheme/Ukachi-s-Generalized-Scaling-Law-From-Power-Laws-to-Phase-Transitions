@@ -1,0 +1,50 @@
+import numpy as np
+import matplotlib.pyplot as plt
+
+# Data from ViT paper (Dosovitskiy et al., 2021)
+models = ['Tiny', 'Small', 'Base', 'Large', 'Huge']
+params = [5.0, 22.0, 86.0, 307.0, 632.0]  # in millions
+accuracy = [75.3, 80.1, 84.2, 85.1, 85.6]  # top-1 %
+
+# Normalize parameters as degrees of freedom f
+# Let f=1 correspond to the smallest model
+f = np.array(params) / params[0]  # relative to Tiny
+
+# According to your law: S(f) ∝ Π^((f-1)/2)
+# Take logs: log(S) = ((f-1)/2) * log(Π) + constant
+
+# Test if log(accuracy) is linear in (f-1)/2
+x = (f - 1) / 2
+y = np.log(accuracy)
+
+# Fit linear regression
+coefficients = np.polyfit(x, y, 1)
+slope = coefficients[0]  # This should be log(Π)
+intercept = coefficients[1]
+
+# Calculate predicted accuracy from the law
+predicted_log_acc = slope * x + intercept
+predicted_acc = np.exp(predicted_log_acc)
+
+# Calculate R² score
+ss_res = np.sum((y - predicted_log_acc)**2)
+ss_tot = np.sum((y - np.mean(y))**2)
+r2 = 1 - (ss_res / ss_tot)
+
+print(f"Slope (log(Π)): {slope:.4f}")
+print(f"Implied Π: {np.exp(slope):.4f}")
+print(f"R² score: {r2:.4f}")
+print(f"\nActual vs Predicted:")
+for i, model in enumerate(models):
+    print(f"{model}: Actual {accuracy[i]:.1f}%, Predicted {predicted_acc[i]:.1f}%")
+
+# Plot
+plt.figure(figsize=(10, 6))
+plt.scatter(x, accuracy, s=100, label='Actual Accuracy')
+plt.plot(x, predicted_acc, 'r-', label=f'Ukachi Law Fit (R²={r2:.3f})')
+plt.xlabel('(f-1)/2 (Normalized Degrees of Freedom)')
+plt.ylabel('Top-1 Accuracy (%)')
+plt.title('Testing Ukachi Scaling Law on Vision Transformers')
+plt.legend()
+plt.grid(True, alpha=0.3)
+plt.show()
